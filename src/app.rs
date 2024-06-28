@@ -115,14 +115,34 @@ impl Widget for &mut App {
     where
         Self: Sized,
     {
-        let [input_area, preview_area] =
-            Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).areas(area);
+        let [input_area, explanation_area, data_area] = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Min(3),
+        ])
+        .areas(area);
+        let [data_area, captures_area] =
+            Layout::horizontal(Constraint::from_ratios([(1, 2), (1, 2)])).areas(data_area);
         Paragraph::new(self.regex_line.clone())
             .block(Block::bordered())
             .render(input_area, buf);
+        Paragraph::new(Line::from_iter(["test", "\n", "lol"]))
+            .render(explanation_area, buf);
         Paragraph::new(self.data.as_str())
             .block(Block::bordered())
-            .render(preview_area, buf);
+            .render(data_area, buf);
+        match &self.regex {
+            Ok(regex) => {
+                Paragraph::new(format!("{:?}", regex.captures(&self.data)))
+                    .block(Block::bordered())
+                    .render(captures_area, buf);
+            }
+            Err(error) => {
+                Paragraph::new(format!("{:?}", error))
+                    .block(Block::bordered())
+                    .render(captures_area, buf);
+            }
+        }
     }
 }
 

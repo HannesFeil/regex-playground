@@ -1,7 +1,7 @@
 use std::{
     io::{self, Read, Write},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{mpsc::channel, Arc, Mutex}, thread, time::Duration,
 };
 
 use app::App;
@@ -68,15 +68,24 @@ fn main() -> io::Result<()> {
         None => if io::stdin().is_tty() {
             String::new()
         } else {
-            let mut string = String::new();
-            io::stdin().read_to_string(&mut string)?;
-            string
+            let (tx, rx) = channel();
+            thread::spawn(move || {
+                let mut input = String::new();
+                io::stdin().read_to_string(&mut input).unwrap();
+                tx.send(input).unwrap();
+            });
+            match rx.recv_timeout(Duration::from_secs(3)) {
+                Ok(input) => input,
+                Err(_) => String::new(),
+            }
         },
     };
     let mut app = App::new(input);
 
     info!("Running application");
-    app.run(&mut terminal);
+
+    app.run(&mut terminal)?;
+
     info!("Application exit");
 
     tui::restore()?;
