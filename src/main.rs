@@ -6,11 +6,13 @@ use std::{
 
 use app::App;
 use clap::Parser;
+use config::Config;
 use crossterm::tty::IsTty;
 use log::info;
 
 mod app;
 mod tui;
+mod config;
 
 #[derive(Parser)]
 struct Args {
@@ -47,6 +49,7 @@ impl Clone for Log {
 
 fn main() -> io::Result<()> {
     let args = Args::parse();
+    let config = Config::default();
 
     let log = Log::new();
     env_logger::builder()
@@ -80,7 +83,7 @@ fn main() -> io::Result<()> {
             }
         },
     };
-    let mut app = App::new(input);
+    let mut app = App::new(input, config);
 
     info!("Running application");
 
