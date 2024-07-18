@@ -1,15 +1,15 @@
 use ratatui::{
     style::{Style, Stylize as _},
-    text::{Line, Span},
+    text::Text,
 };
-use regex::Regex;
+use regex::{Captures, Regex};
 use regex_syntax::ast;
 use tui_input::{Input, InputRequest, InputResponse};
 
 pub struct RegexInput {
     regex_input: Input,
     regex_parsed: Result<ast::Ast, ast::Error>,
-    regex_line: Line<'static>,
+    regex_line: Text<'static>,
     regex: Result<Regex, regex::Error>,
 }
 
@@ -18,7 +18,7 @@ impl RegexInput {
         Self {
             regex_input: Input::new("".to_owned()),
             regex_parsed: ast::parse::Parser::new().parse(""),
-            regex_line: Line::raw(""),
+            regex_line: Text::from(""),
             regex: Regex::new(""),
         }
     }
@@ -36,12 +36,15 @@ impl RegexInput {
         self.regex_parsed = ast::parse::Parser::new().parse(&string);
         self.regex = Regex::new(&string);
         self.regex_line = match &self.regex_parsed {
-            Ok(ast) => ast::visit(ast, RegexFormatter::new(string)).unwrap(),
-            Err(_) => Line::raw(string),
+            Ok(ast) => crate::tui::style_string(
+                &string,
+                &ast::visit(ast, RegexFormatter::new(string.len())).unwrap(),
+            ),
+            Err(_) => Text::from(string),
         };
     }
 
-    pub fn input_line(&self) -> &Line<'static> {
+    pub fn input_line(&self) -> &Text<'static> {
         &self.regex_line
     }
 
@@ -61,17 +64,26 @@ impl RegexInput {
     }
 }
 
+pub fn style_captures<'a>(len: usize, captures: impl Iterator<Item = Captures<'a>>) -> Vec<Style> {
+    let mut styles = vec![Style::new(); len];
+
+    for capture in captures {
+        let group0 = capture.get(0).unwrap();
+        for i in group0.start()..group0.end() {
+            styles[i] = styles[i].on_red();
+        }
+    }
+
+    styles
+}
+
 struct RegexFormatter {
-    input: String,
     styles: Vec<Style>,
 }
 
 impl RegexFormatter {
-    fn new(input: String) -> Self {
-        let len = input.len();
-
+    fn new(len: usize) -> Self {
         RegexFormatter {
-            input,
             styles: vec![Style::new(); len],
         }
     }
@@ -108,15 +120,11 @@ impl RegexFormatter {
 }
 
 impl ast::Visitor for RegexFormatter {
-    type Output = Line<'static>;
+    type Output = Vec<Style>;
     type Err = String;
 
     fn finish(self) -> Result<Self::Output, Self::Err> {
-        Ok(self
-            .input
-            .char_indices()
-            .map(|(index, char)| Span::styled(char.to_string(), self.styles[index]))
-            .collect())
+        Ok(self.styles)
     }
 
     fn visit_pre(&mut self, ast: &ast::Ast) -> Result<(), Self::Err> {

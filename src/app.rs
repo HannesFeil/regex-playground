@@ -8,11 +8,14 @@ use ratatui::{
     text::ToSpan,
     widgets::{Block, Paragraph, Widget},
 };
-use regex::RegexInput;
+use regex::{style_captures, RegexInput};
 
 mod regex;
 
-use crate::{config::Config, tui::Tui};
+use crate::{
+    config::Config,
+    tui::{self, Tui},
+};
 
 pub struct App {
     running: bool,
@@ -157,9 +160,12 @@ impl Widget for &mut App {
         // Display captures here
         match &self.regex_input.regex() {
             Ok(regex) => {
-                Paragraph::new(format!("{:?}", regex.captures(&self.data)))
-                    .block(Block::bordered())
-                    .render(captures_area, buf);
+                Paragraph::new(tui::style_string(
+                    &self.data,
+                    &style_captures(self.data.len(), regex.captures_iter(&self.data)),
+                ))
+                .block(Block::bordered())
+                .render(captures_area, buf);
             }
             Err(error) => {
                 Paragraph::new(format!("{:?}", error))
